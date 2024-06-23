@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
-from suzieq.restServer.query import rest_main
+from suzieq.restServer.main import rest_main
 
 
 if __name__ == "__main__":
