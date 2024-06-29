@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 
 import logging
 import os
@@ -8,7 +8,7 @@ from pydantic import BaseModel, validator, Field
 import uvicorn
 
 from suzieq.restServer.utils.types import KeyPermission, ApiKey, EndpointFilter
-from suizeq.shared.utils import load_sq_config
+from suzieq.shared.utils import load_sq_config
 
 
 class Settings(BaseModel):
@@ -32,6 +32,13 @@ class Settings(BaseModel):
     log_filter_endpoints: Optional[List[str]] = Field(
         default_factory=list, description="Full endpoints to filter from logs"
     )
+    inventory_dir: str = "/var/lib/suzieq/inventory"
+    temp_inventory_dir: str = "/tmp/suzieq/inventory"
+    config_file: str
+    config_data: Dict[str, Any]
+
+    class Config:
+        arbitrary_types_allowed = True
 
     @validator("log_filter_endpoints", pre=True)
     def parse_log_filter_endpoints(cls, v):
@@ -47,27 +54,27 @@ class Settings(BaseModel):
     @validator("logging_level", pre=True)
     def parse_log_level(cls, v):
         levels = {
-            "DEBUG": logging.DEBUG,
-            "INFO": logging.INFO,
-            "WARNING": logging.WARNING,
-            "ERROR": logging.ERROR,
-            "CRITICAL": logging.CRITICAL,
+            logging.DEBUG: "debug",
+            logging.INFO: "info",
+            logging.WARNING: "warning",
+            logging.ERROR: "error",
+            logging.CRITICAL: "critical",
         }
 
         if isinstance(v, str):
-            upper_v = v.upper()
-            if upper_v in levels:
-                return levels[upper_v]
+            lower_v = v.lower()
+            if lower_v in levels.values():
+                return lower_v
         elif isinstance(v, int):
-            if v in levels.values():
-                return v
+            if v in levels:
+                return levels[v]
 
-        available_levels = ", ".join(levels.keys())
+        available_levels = ", ".join(levels.values())
         raise ValueError(
             f"Invalid log level: {v}. Available levels are: {available_levels}"
         )
 
-    @validator("API_KEYS", pre=True)
+    @validator("api_keys", pre=True)
     def parse_api_keys(cls, v, values):
         keys = {}
 
@@ -156,8 +163,8 @@ class Settings(BaseModel):
         if cls._instance is not None:
             raise ValueError("Settings instance already exists")
 
-        config = load_sq_config(config_file=config_file)
-        rest_config = config.get("rest", {})
+        suzieq_config = load_sq_config(config_file=config_file)
+        rest_config = suzieq_config.get("rest", {})
         config = {k.lower().replace("-", "_"): v for k, v in rest_config.items()}
 
         env_prefix = config.get("env_prefix", "")
@@ -167,9 +174,9 @@ class Settings(BaseModel):
             if env_var in os.environ:
                 config[field] = os.environ[env_var]
 
+        config["config_file"] = config_file
+        config["config_data"] = suzieq_config
         cls._instance = cls(**config)
-        cls._instance.configure_uvicorn_logging()
-        cls._instance.config_file = config_file
 
         return cls._instance
 

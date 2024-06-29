@@ -1,12 +1,14 @@
 import argparse
 import sys
+
 import uvicorn
 
 from fastapi import FastAPI, HTTPException
 
 from suzieq.shared.utils import print_version, sq_get_config_file
-from suzieq.restServer.utils.helpers import return_error
 from suzieq.restServer.utils.config import Settings
+from suzieq.restServer.routes.sq_poller import router as sq_poller_router
+from suzieq.restServer.routes.query import router as query_router
 
 
 app = FastAPI(
@@ -14,6 +16,8 @@ app = FastAPI(
     docs_url="/api/docs",
     redoc_url="/api/redoc",
 )
+app.include_router(sq_poller_router, prefix="/api/v2")
+app.include_router(query_router, prefix="/api/v2")
 
 
 def rest_main(*args) -> None:
@@ -45,7 +49,7 @@ def rest_main(*args) -> None:
     config_file = sq_get_config_file(userargs.config)
 
     settings = Settings.from_config(config_file)
-
+    settings.configure_uvicorn_logging()
     if settings.no_https:
         uvicorn.run(
             app,
