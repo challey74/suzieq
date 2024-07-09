@@ -46,7 +46,7 @@ class Controller:
         self.manager = None
 
         # Initialize configurations
-        self._config: Dict = defaultdict(lambda: {})
+        self._config = defaultdict(lambda: {})
         self._config.update(config_data.get('poller', {}))
 
         # Set controller configuration
@@ -223,7 +223,7 @@ class Controller:
             self.sources = self.init_plugins('source')
             if not self.sources:
                 raise SqPollerConfError(
-                    'The inventory file does not have any source'
+                    "The inventory file does't have any source"
                 )
 
             # Initialize chunker module
@@ -364,8 +364,8 @@ class Controller:
                     )
                 except asyncio.TimeoutError:
                     raise InventorySourceError(
-                        f'Timeout error: source {inv_src.name} \
-                        took too much time'
+                        f'Timeout error: source {inv_src.name}'
+                        'took too much time'
                     )
 
                 logger.debug(f'Received inventory from {inv_src.name}')
