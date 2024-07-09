@@ -1,11 +1,10 @@
-from functools import partial
-
-from fastapi import Security, HTTPException
+from fastapi import Security, HTTPException, Depends
 from fastapi.security import APIKeyHeader, APIKeyQuery
 
-from suzieq.restServer.utils.config import get_settings
+from suzieq.restServer.utils.settings import get_settings
 from suzieq.restServer.utils.types import KeyPermission
 from suzieq.restServer.utils.helpers import append_error_id
+
 
 _key_name = "access_token"
 _previous_api_key_header = APIKeyHeader(name=_key_name, auto_error=False)
@@ -51,8 +50,26 @@ def check_auth(
     return api_key
 
 
-REQUIRE_READ = partial(check_auth, required_permission="READ")
-REQUIRE_WRITE = partial(check_auth, required_permission="WRITE")
-REQUIRE_DELETE = partial(check_auth, required_permission="DELETE")
-REQUIRE_EXECUTE = partial(check_auth, required_permission="EXECUTE")
-REQUIRE_ADMIN = partial(check_auth, required_permission="ADMIN")
+# Wrapper to require a specific permission and
+# not have it show in swagger as query param
+def require_permission(required_permission: str):
+    def _require_permission(
+        previous_api_key_header: str = Security(_previous_api_key_header),
+        api_key_header: str = Security(_api_key_header),
+        api_key_query: str = Security(_api_key_query),
+    ):
+        return check_auth(
+            required_permission,
+            previous_api_key_header,
+            api_key_header,
+            api_key_query,
+        )
+
+    return Depends(_require_permission)
+
+
+REQUIRE_READ = require_permission("READ")
+REQUIRE_WRITE = require_permission("WRITE")
+REQUIRE_DELETE = require_permission("DELETE")
+REQUIRE_EXECUTE = require_permission("EXECUTE")
+REQUIRE_ADMIN = require_permission("ADMIN")

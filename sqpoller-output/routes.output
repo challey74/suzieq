@@ -1,0 +1,76 @@
+[
+    {
+        "status": 0,
+        "timestamp": 1719781063015,
+        "cmd_timestamp": 1719781062620,
+        "cmd": "show ip route vrf *",
+        "devtype": "ios",
+        "namespace": "lab",
+        "hostname": "73-lab-cis2",
+        "address": "172.16.14.3",
+        "version": "15.2(7)E6",
+        "data": "show ip route vrf *\r\nDefault gateway is 172.16.14.1\r\n\r\nHost               Gateway           Last Use    Total Uses  Interface\r\nICMP redirect cache is empty\r\n73-lab-cis2#"
+    },
+    {
+        "status": 0,
+        "timestamp": 1719781063629,
+        "cmd_timestamp": 1719781063016,
+        "cmd": "show ipv6 route vrf *",
+        "devtype": "ios",
+        "namespace": "lab",
+        "hostname": "73-lab-cis2",
+        "address": "172.16.14.3",
+        "version": "15.2(7)E6",
+        "data": "show ipv6 route vrf *\r\n% IPv6 routing table * does not exist\r\n73-lab-cis2#"
+    }
+][
+    {
+        "status": 0,
+        "timestamp": 1719783277744,
+        "cmd_timestamp": 1719783277375,
+        "cmd": "show ip route vrf *",
+        "devtype": "ios",
+        "namespace": "lab",
+        "hostname": "73-lab-cis1",
+        "address": "73-lab-cis1.telcom.arizona.edu",
+        "version": "15.2(7)E4",
+        "data": "show ip route vrf *\r\nDefault gateway is 172.16.14.1\r\n\r\nHost               Gateway           Last Use    Total Uses  Interface\r\nICMP redirect cache is empty\r\n73-lab-cis1#"
+    },
+    {
+        "status": 0,
+        "timestamp": 1719783278101,
+        "cmd_timestamp": 1719783277745,
+        "cmd": "show ipv6 route vrf *",
+        "devtype": "ios",
+        "namespace": "lab",
+        "hostname": "73-lab-cis1",
+        "address": "73-lab-cis1.telcom.arizona.edu",
+        "version": "15.2(7)E4",
+        "data": "show ipv6 route vrf *\r\n% IPv6 routing table * does not exist\r\n73-lab-cis1#"
+    }
+][
+    {
+        "status": 0,
+        "timestamp": 1720049303472,
+        "cmd_timestamp": 1720049303199,
+        "cmd": "show ip route vrf *",
+        "devtype": "ios",
+        "namespace": "string",
+        "hostname": "73-lab-cis1",
+        "address": "73-lab-cis1.telcom.arizona.edu",
+        "version": "15.2(7)E4",
+        "data": "show ip route vrf *\r\nDefault gateway is 172.16.14.1\r\n\r\nHost               Gateway           Last Use    Total Uses  Interface\r\nICMP redirect cache is empty\r\n73-lab-cis1#"
+    },
+    {
+        "status": 0,
+        "timestamp": 1720049303827,
+        "cmd_timestamp": 1720049303473,
+        "cmd": "show ipv6 route vrf *",
+        "devtype": "ios",
+        "namespace": "string",
+        "hostname": "73-lab-cis1",
+        "address": "73-lab-cis1.telcom.arizona.edu",
+        "version": "15.2(7)E4",
+        "data": "show ipv6 route vrf *\r\n% IPv6 routing table * does not exist\r\n73-lab-cis1#"
+    }
+]

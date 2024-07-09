@@ -8,6 +8,7 @@ Functions:
                 and starting each one of them. The plugins are divided
                 in types.
 """
+
 import argparse
 import asyncio
 import logging
@@ -18,8 +19,9 @@ from typing import Dict, List
 from copy import deepcopy
 
 from suzieq.poller.controller.base_controller_plugin import ControllerPlugin
-from suzieq.poller.controller.inventory_async_plugin import \
+from suzieq.poller.controller.inventory_async_plugin import (
     InventoryAsyncPlugin
+)
 from suzieq.poller.worker.services.service_manager import ServiceManager
 from suzieq.shared.exceptions import InventorySourceError, SqPollerConfError
 from suzieq.shared.utils import sq_get_config_file
@@ -30,10 +32,9 @@ DEFAULT_INVENTORY_PATH = 'suzieq/config/etc/inventory.yaml'
 
 
 class Controller:
-    """This class manages all the plugins set on the configuration files
-    """
+    """This class manages all the plugins set on the configuration files"""
 
-    def __init__(self, args: argparse.Namespace, config_data: dict) -> None:
+    def __init__(self, args: argparse.Namespace, config_data: Dict) -> None:
         # contains the Plugin objects divided by type
         self._plugin_objects = {}
 
@@ -45,7 +46,7 @@ class Controller:
         self.manager = None
 
         # Initialize configurations
-        self._config = defaultdict(lambda: {})
+        self._config: Dict = defaultdict(lambda: {})
         self._config.update(config_data.get('poller', {}))
 
         # Set controller configuration
@@ -72,11 +73,27 @@ class Controller:
         if self._single_run_mode:
             self._no_coalescer = True
 
-        self._period = args.update_period or \
-            self._config.get('update-period', 3600)
-        self._inventory_timeout = self._config.get('inventory-timeout', 10)
-        self._n_workers = args.workers or self._config.get(
-            'manager', {}).get('workers', 1)
+        self._update_period = args.update_period or self._config.get(
+            'update-period', 3600
+        )
+        self._inventory_timeout = args.inventory_timeout or self._config.get(
+            'inventory-timeout', 10
+        )
+        self._n_workers = args.workers or self._config.get('manager', {}).get(
+            'workers', 1
+        )
+
+        if isinstance(args.logging_level, str):
+            self._config['logging-level'] = args.logging_level.upper()
+
+        if isinstance(args.log_stdout, bool):
+            self._config['log-stdout'] = args.log_stdout
+
+        if isinstance(args.connect_timeout, int):
+            self._config['connect-timeout'] = args.connect_timeout
+
+        if isinstance(args.period, int):
+            self._config['period'] = args.period
 
         # Validate the arguments
         self._validate_controller_args(args, config_data)
@@ -86,9 +103,11 @@ class Controller:
         inventory_file = None
 
         if not self._input_dir:
-            inventory_file = args.inventory or \
-                self._config.get('inventory-file') or \
-                default_inventory_file
+            inventory_file = (
+                args.inventory
+                or self._config.get('inventory-file')
+                or default_inventory_file
+            )
             if not Path(inventory_file).is_file():
                 if inventory_file != default_inventory_file:
                     raise SqPollerConfError(
@@ -108,35 +127,42 @@ class Controller:
                 )
 
         # Get the maximum number of commands per second
-        max_cmd_pipeline = self._config.get('max-cmd-pipeline', 0)
-        if ((max_cmd_pipeline != 0) and
-                (max_cmd_pipeline % self._n_workers != 0)):
+        max_cmd_pipeline = args.max_cmd_pipeline or self._config.get(
+            'max-cmd-pipeline', 0
+        )
+        if (max_cmd_pipeline != 0) and (
+            max_cmd_pipeline % self._n_workers != 0
+        ):
             raise SqPollerConfError(
                 f'max-cmd-pipeline ({max_cmd_pipeline}) has to be a '
-                f'multiple of the number of worker ({self._n_workers})')
+                f'multiple of the number of worker ({self._n_workers})'
+            )
 
-        source_args = {'single-run-mode': self._single_run_mode,
-                       'path': inventory_file}
+        source_args = {
+            'single-run-mode': self._single_run_mode,
+            'path': inventory_file
+        }
 
-        manager_args = {'config': sq_get_config_file(args.config),
-                        'config-dict': config_data,
-                        'debug': args.debug,
-                        'input-dir': self._input_dir,
-                        'exclude-services': args.exclude_services,
-                        'no-coalescer': self._no_coalescer,
-                        'output-dir': args.output_dir,
-                        'outputs': args.outputs,
-                        'max-cmd-pipeline': max_cmd_pipeline,
-                        # `single-run-mode` and `run-once` are different.
-                        # The former is an internal variable telling the
-                        # poller if it should run and terminate, the other
-                        # is a special run mode for the worker.
-                        'single-run-mode': self._single_run_mode,
-                        'run-once': args.run_once,
-                        'service-only': args.service_only,
-                        'ssh-config-file': args.ssh_config_file,
-                        'workers': self._n_workers
-                        }
+        manager_args = {
+            'config': sq_get_config_file(args.config),
+            'config-dict': config_data,
+            'debug': args.debug,
+            'input-dir': self._input_dir,
+            'exclude-services': args.exclude_services,
+            'no-coalescer': self._no_coalescer,
+            'output-dir': args.output_dir,
+            'outputs': args.outputs,
+            'max-cmd-pipeline': max_cmd_pipeline,
+            # `single-run-mode` and `run-once` are different.
+            # The former is an internal variable telling the
+            # poller if it should run and terminate, the other
+            # is a special run mode for the worker.
+            'single-run-mode': self._single_run_mode,
+            'run-once': args.run_once,
+            'service-only': args.service_only,
+            'ssh-config-file': args.ssh_config_file,
+            'workers': self._n_workers,
+        }
 
         # Update configuration with command arguments
         self._config['source'].update(source_args)
@@ -147,6 +173,10 @@ class Controller:
 
         if not self._config['chunker'].get('type'):
             self._config['chunker']['type'] = 'static'
+
+        # state for running and stopping the controller
+        self._tasks = []
+        self._stop_event = asyncio.Event()
 
     @property
     def single_run_mode(self) -> str:
@@ -165,7 +195,7 @@ class Controller:
         Returns:
             [int]: update period in seconds
         """
-        return self._period
+        return self._update_period
 
     @property
     def inventory_timeout(self) -> int:
@@ -193,7 +223,7 @@ class Controller:
             self.sources = self.init_plugins('source')
             if not self.sources:
                 raise SqPollerConfError(
-                    "The inventory file doesn't have any source"
+                    'The inventory file does not have any source'
                 )
 
             # Initialize chunker module
@@ -211,9 +241,7 @@ class Controller:
 
         managers = self.init_plugins('manager')
         if len(managers) > 1:
-            raise SqPollerConfError(
-                'Only 1 manager at a time is supported'
-            )
+            raise SqPollerConfError('Only 1 manager at a time is supported')
         self.manager = managers[0]
 
     def init_plugins(self, plugin_type: str) -> List[ControllerPlugin]:
@@ -237,65 +265,86 @@ class Controller:
 
         # Initialize all the instances of the given plugin
         self._plugin_objects[plugin_type] = base_plugin_class.init_plugins(
-            plugin_conf)
+            plugin_conf
+        )
+
         return self._plugin_objects[plugin_type]
 
     async def run(self):
-        """Start the device polling phase.
+        """Start the device polling phase."""
 
-        In the kwargs are passed all the components that must be started
+        if not self._stop_event.is_set() and self._tasks:
+            logger.warning(
+                'Controller is already running. Skipping this run request.'
+            )
+            return
 
-        Args:
-            controller (Controller): contains the informations for controller
-            and workers
-        """
-        # When the poller receives a termination signal, we would like
-        # to gracefully terminate all the tasks
-        loop = asyncio.get_event_loop()
-        for s in [signal.SIGTERM, signal.SIGINT]:
-            loop.add_signal_handler(
-                s, lambda s=s: asyncio.create_task(self._stop()))
-
-        # Start collecting the tasks to launch
-        source_tasks = [s.run() for s in self.sources
-                        if isinstance(s, InventoryAsyncPlugin)]
-        # Check if we need to launch the manager in background
-        manager_tasks = []
-        if isinstance(self.manager, InventoryAsyncPlugin):
-            manager_tasks.append(self.manager.run())
-
-        # Append the synchronization manager
-        controller_task = [self._inventory_sync()]
-
-        # Launch all the tasks
-        tasks = [asyncio.create_task(t)
-                 for t in (source_tasks + manager_tasks + controller_task)]
         try:
-            while tasks:
-                done, pending = await asyncio.wait(
-                    tasks,
-                    return_when=asyncio.FIRST_COMPLETED
+            # Reset the state and clear any previous tasks
+            self._stop_event.clear()
+            self._tasks = []
+
+            # Set up signal handlers
+            loop = asyncio.get_event_loop()
+            for s in [signal.SIGTERM, signal.SIGINT]:
+                loop.add_signal_handler(
+                    s, lambda: asyncio.create_task(self.handle_termination())
                 )
 
-                tasks = list(pending)
-                for task in done:
-                    if task.exception():
-                        raise task.exception()
-                # Ignore completed task if started with single-run mode
-                if self._single_run_mode:
-                    continue
+            # Start collecting the tasks to launch
+            source_tasks = [
+                s.run() for s in self.sources
+                if isinstance(s, InventoryAsyncPlugin)
+            ]
+            manager_tasks = (
+                [self.manager.run()]
+                if isinstance(self.manager, InventoryAsyncPlugin)
+                else []
+            )
+            controller_task = [self._inventory_sync()]
+
+            # Launch all the tasks
+            self._tasks = [
+                asyncio.create_task(t)
+                for t in (source_tasks + manager_tasks + controller_task)
+            ]
+
+            if self._single_run_mode:
+                await asyncio.gather(*self._tasks)
+            else:
+                # If in continuous mode, run until the stop event is set
+                await self._stop_event.wait()
 
         except asyncio.CancelledError:
-            logger.warning('Received termination signal, terminating...')
+            logger.warning('Tasks cancelled, shutting down...')
+        except Exception as e:
+            logger.error(f'Unexpected error in run method: {e}')
+        finally:
+            # Stop the controller cleanly if errored
+            # or running in single-run mode
+            if not self._stop_event.is_set():
+                await self.stop()
 
-    async def _stop(self):
-        """Stop the controller"""
+    async def stop(self):
+        """Stop the controller and cancel its running tasks"""
 
-        tasks = [t for t in asyncio.all_tasks()
-                 if t is not asyncio.current_task()]
+        if self._stop_event.is_set():
+            logger.warning('Stop already in progress. Skipping this call')
+            return
 
-        for task in tasks:
-            task.cancel()
+        self._stop_event.set()
+
+        for task in self._tasks:
+            if not task.done():
+                task.cancel()
+
+        if self._tasks:
+            await asyncio.gather(*self._tasks, return_exceptions=True)
+
+        self._tasks.clear()
+        self._plugin_objects.clear()
+
+        logger.info('All controller tasks have been stopped and cleaned up')
 
     async def _inventory_sync(self):
         # With the input directory we do not launch the synchronization loop
@@ -308,30 +357,34 @@ class Controller:
 
             for inv_src in self.sources:
                 try:
-                    cur_inv = deepcopy(await asyncio.wait_for(
-                        inv_src.get_inventory(),
-                        self._inventory_timeout
-                    ))
+                    cur_inv = deepcopy(
+                        await asyncio.wait_for(
+                            inv_src.get_inventory(), self._inventory_timeout
+                        )
+                    )
                 except asyncio.TimeoutError:
                     raise InventorySourceError(
-                        f'Timeout error: source {inv_src.name} took'
-                        'too much time'
+                        f'Timeout error: source {inv_src.name} \
+                        took too much time'
                     )
 
                 logger.debug(f'Received inventory from {inv_src.name}')
                 if cur_inv:
                     cur_inv_count = len(cur_inv)
-                    duplicated_devices = [x for x in cur_inv
-                                          if x in global_inventory]
+                    duplicated_devices = [
+                        x for x in cur_inv if x in global_inventory
+                    ]
                     for dd in duplicated_devices:
                         logger.warning(f'Ignoring duplicated device {dd}')
                         cur_inv.pop(dd)
                     if len(duplicated_devices) == cur_inv_count:
                         logger.warning(
-                            f'All {inv_src.name} nodes have been ignored')
+                            f'All {inv_src.name} nodes have been ignored'
+                        )
                 else:
                     logger.warning(
-                        f'source {inv_src.name} returned an empty inventory')
+                        f'source {inv_src.name} returned an empty inventory'
+                    )
 
                 global_inventory.update(cur_inv)
 
@@ -346,7 +399,7 @@ class Controller:
 
             if self._single_run_mode:
                 break
-            await asyncio.sleep(self._period)
+            await asyncio.sleep(self._update_period)
 
     def _validate_controller_args(self, args: argparse.Namespace, cfg: Dict):
         """Validate the arguments given to the Controller instance
@@ -357,25 +410,47 @@ class Controller:
         Raises:
             SqPollerConfError: raised if a wrong configuration is passed
         """
+
+        errors = []
+
         # Check if the timeout and the period are valid
         if self._inventory_timeout < 1:
-            raise SqPollerConfError(
-                'Invalid inventory timeout: at least 1 second'
-            )
+            errors.append('Invalid inventory timeout: at least 1 second')
 
-        if self._period < 1:
-            raise SqPollerConfError(
-                'Invalid period: at least one second required'
-            )
+        if self._update_period < 1:
+            errors.append('Invalid period: at least one second required')
 
         if self._n_workers < 0:
-            raise SqPollerConfError(
-                'At least a worker is required'
+            errors.append('At least a worker is required')
+
+        log_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+        if args.logging_level.upper() not in log_levels:
+            errors.append(
+                f'Invalid log level: {args.logging_level}. \
+                Valid levels are: {" ,".join(log_levels)}'
             )
+
+        if args.period < 1:
+            errors.append('Invalid polling period: at least 1 second')
+
+        if errors:
+            raise SqPollerConfError('\n'.join(errors))
 
         # Check if service list is valid
         ServiceManager.get_service_list(
-            args.service_only,
-            args.exclude_services,
-            cfg['service-directory']
+            args.service_only, args.exclude_services, cfg['service-directory']
         )
+
+    @classmethod
+    async def handle_termination(cls):
+        """Handle termination signal by cancelling all tasks."""
+        logger.warning('Received termination signal. Cancelling all tasks...')
+
+        all_tasks = [
+            t for t in asyncio.all_tasks() if t is not asyncio.current_task()
+        ]
+        for task in all_tasks:
+            task.cancel()
+
+        await asyncio.gather(*all_tasks, return_exceptions=True)
+        asyncio.get_event_loop().stop()

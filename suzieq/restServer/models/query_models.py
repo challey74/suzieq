@@ -1,14 +1,11 @@
 from enum import Enum
 from typing import List, Optional
 
-from fastapi import Depends, APIRouter, Query
+from fastapi import Query
 from pydantic import BaseModel
 from typing_extensions import Annotated
 
-from suzieq.restServer.services.query_services import read_shared
-from suzieq.restServer.utils.auth import REQUIRE_READ
-
-router = APIRouter()
+from suzieq.shared.utils import DataFormats
 
 
 class CommonVerbs(str, Enum):
@@ -105,7 +102,7 @@ class ViewValues(str, Enum):
 
 
 class CommonParams(BaseModel):
-    format: str
+    format: DataFormats = DataFormats.JSON
     hostname: Annotated[Optional[List[str]], Query()] = None
     start_time: Optional[str] = ""
     end_time: Optional[str] = ""
@@ -126,11 +123,6 @@ class ArpndParams(CommonParams):
     oif: Annotated[Optional[List[str]], Query()] = None
 
 
-@router.get("/arpnd/{verb}", dependencies=[Depends(REQUIRE_READ)])
-def query_arpnd(params: Annotated[ArpndParams, Depends(ArpndParams)]):
-    return read_shared("arpnd", params)
-
-
 class BgpParams(CommonParams):
     verb: CommonExtraVerbs
     peer: Annotated[Optional[List[str]], Query()] = None
@@ -139,11 +131,6 @@ class BgpParams(CommonParams):
     asn: Annotated[Optional[List[str]], Query()] = None
     result: Optional[AssertResultValue] = None
     afiSafi: Optional[str] = None
-
-
-@router.get("/bgp/{verb}", dependencies=[Depends(REQUIRE_READ)])
-def query_bgp(params: Annotated[BgpParams, Depends(BgpParams)]):
-    return read_shared("bgp", params)
 
 
 class DeviceParams(CommonParams):
@@ -156,19 +143,9 @@ class DeviceParams(CommonParams):
     ignore_neverpoll: Optional[bool] = None
 
 
-@router.get("/device/{verb}", dependencies=[Depends(REQUIRE_READ)])
-def query_device(params: Annotated[DeviceParams, Depends(DeviceParams)]):
-    return read_shared("device", params)
-
-
 class DevconfigParams(CommonParams):
     verb: CommonVerbs
     section: Optional[str] = None
-
-
-@router.get("/devconfig/{verb}", dependencies=[Depends(REQUIRE_READ)])
-def query_devconfig(params: Annotated[DevconfigParams, Depends(DevconfigParams)]):
-    return read_shared("devconfig", params)
 
 
 class EvpnVniParams(CommonParams):
@@ -178,20 +155,10 @@ class EvpnVniParams(CommonParams):
     result: Optional[AssertResultValue] = None
 
 
-@router.get("/evpnVni/{verb}", dependencies=[Depends(REQUIRE_READ)])
-def query_evpnVni(params: Annotated[EvpnVniParams, Depends(EvpnVniParams)]):
-    return read_shared("evpnVni", params)
-
-
 class FsParams(CommonParams):
     verb: CommonVerbs
     mountPoint: Annotated[Optional[List[str]], Query()] = None
     usedPercent: Optional[str] = None
-
-
-@router.get("/fs/{verb}", dependencies=[Depends(REQUIRE_READ)])
-def query_fs(params: Annotated[FsParams, Depends(FsParams)]):
-    return read_shared("fs", params)
 
 
 class InterfaceParams(CommonParams):
@@ -203,18 +170,13 @@ class InterfaceParams(CommonParams):
     master: Annotated[Optional[List[str]], Query()] = None
     mtu: Annotated[Optional[List[str]], Query()] = None
     ifindex: Annotated[Optional[List[str]], Query()] = None
-    value: Optional[List[int]] = None
+    value: Annotated[Optional[List[int]], Query()] = None
     result: Optional[AssertResultValue] = None
-    ignore_missing_peer: Optional[bool] = False
+    ignore_missing_peer: Optional[bool] = None
     vlan: Annotated[Optional[List[str]], Query()] = None
     portmode: Annotated[Optional[List[str]], Query()] = None
     macaddr: Annotated[Optional[List[str]], Query()] = None
     bond: Annotated[Optional[List[str]], Query()] = None
-
-
-@router.get("/interface/{verb}", dependencies=[Depends(REQUIRE_READ)])
-def query_interface(params: Annotated[InterfaceParams, Depends(InterfaceParams)]):
-    return read_shared("interface", params)
 
 
 class InventoryParams(CommonParams):
@@ -226,22 +188,12 @@ class InventoryParams(CommonParams):
     status: Optional[InventoryStatusValues] = None
 
 
-@router.get("/inventory/{verb}", dependencies=[Depends(REQUIRE_READ)])
-def query_inventory(params: Annotated[InventoryParams, Depends(InventoryParams)]):
-    return read_shared("inventory", params)
-
-
 class LldpParams(CommonParams):
     verb: CommonVerbs
     peerMacaddr: Annotated[Optional[List[str]], Query()] = None
     peerHostname: Annotated[Optional[List[str]], Query()] = None
     ifname: Annotated[Optional[List[str]], Query()] = None
     use_bond: Optional[TruthasStrings] = None
-
-
-@router.get("/lldp/{verb}", dependencies=[Depends(REQUIRE_READ)])
-def query_lldp(params: Annotated[LldpParams, Depends(LldpParams)]):
-    return read_shared("lldp", params)
 
 
 class MacParams(CommonParams):
@@ -254,18 +206,8 @@ class MacParams(CommonParams):
     moveCount: Optional[str] = None
 
 
-@router.get("/mac/{verb}", dependencies=[Depends(REQUIRE_READ)])
-def query_mac(params: Annotated[MacParams, Depends(MacParams)]):
-    return read_shared("mac", params)
-
-
 class MlagParams(CommonParams):
     verb: CommonVerbs
-
-
-@router.get("/mlag/{verb}", dependencies=[Depends(REQUIRE_READ)])
-def query_mlag(params: Annotated[MlagParams, Depends(MlagParams)]):
-    return read_shared("mlag", params)
 
 
 class NetworkParams(CommonParams):
@@ -275,22 +217,12 @@ class NetworkParams(CommonParams):
     vrf: Optional[str] = ""
 
 
-@router.get("/network/{verb}", dependencies=[Depends(REQUIRE_READ)])
-def query_network(params: Annotated[NetworkParams, Depends(NetworkParams)]):
-    return read_shared("network", params)
-
-
 class NamespaceParams(CommonParams):
     verb: CommonVerbs
     version: Optional[str] = ""
     model: Annotated[Optional[List[str]], Query()] = None
     vendor: Annotated[Optional[List[str]], Query()] = None
     os: Annotated[Optional[List[str]], Query()] = None
-
-
-@router.get("/namespace/{verb}", dependencies=[Depends(REQUIRE_READ)])
-def query_namespace(params: Annotated[NamespaceParams, Depends(NamespaceParams)]):
-    return read_shared("namespace", params)
 
 
 class OspfParams(CommonParams):
@@ -302,21 +234,11 @@ class OspfParams(CommonParams):
     result: Optional[AssertResultValue] = None
 
 
-@router.get("/ospf/{verb}", dependencies=[Depends(REQUIRE_READ)])
-def query_ospf(params: Annotated[OspfParams, Depends(OspfParams)]):
-    return read_shared("ospf", params)
-
-
 class PathParams(CommonParams):
     verb: CommonVerbs
     vrf: Optional[str] = None
     dest: Optional[str] = None
     src: Optional[str] = None
-
-
-@router.get("/path/{verb}", dependencies=[Depends(REQUIRE_READ)])
-def query_path(params: Annotated[PathParams, Depends(PathParams)]):
-    return read_shared("path", params)
 
 
 class RouteParams(CommonParams):
@@ -330,21 +252,11 @@ class RouteParams(CommonParams):
     address: Optional[str] = None
 
 
-@router.get("/route/{verb}", dependencies=[Depends(REQUIRE_READ)])
-def query_route(params: Annotated[RouteParams, Depends(RouteParams)]):
-    return read_shared("route", params)
-
-
 class SqPollerParams(CommonParams):
     verb: CommonVerbs
     service: Optional[str] = None
     status: Optional[SqPollerStatus] = None
     pollExcdPeriodCount: Optional[str] = None
-
-
-@router.get("/sqPoller/{verb}", dependencies=[Depends(REQUIRE_READ)])
-def query_sqPoller(params: Annotated[SqPollerParams, Depends(SqPollerParams)]):
-    return read_shared("sqPoller", params)
 
 
 class TopologyParams(CommonParams):
@@ -359,19 +271,9 @@ class TopologyParams(CommonParams):
     afiSafi: Optional[str] = None
 
 
-@router.get("/topology/{verb}", dependencies=[Depends(REQUIRE_READ)])
-def query_topology(params: Annotated[TopologyParams, Depends(TopologyParams)]):
-    return read_shared("topology", params)
-
-
 class TableParams(CommonParams):
     verb: CommonVerbs
     table: Optional[str] = None
-
-
-@router.get("/table/{verb}", dependencies=[Depends(REQUIRE_READ)])
-def query_table(params: Annotated[TableParams, Depends(TableParams)]):
-    return read_shared("table", params)
 
 
 class VlanParams(CommonParams):
@@ -379,8 +281,3 @@ class VlanParams(CommonParams):
     vlan: Annotated[Optional[List[str]], Query()] = None
     state: Optional[str] = None
     vlanName: Annotated[Optional[List[str]], Query()] = None
-
-
-@router.get("/vlan/{verb}", dependencies=[Depends(REQUIRE_READ)])
-def query_vlan(params: Annotated[VlanParams, Depends(VlanParams)]):
-    return read_shared("vlan", params)

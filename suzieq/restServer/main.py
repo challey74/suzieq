@@ -5,18 +5,23 @@ import uvicorn
 
 from fastapi import FastAPI, HTTPException
 
+from suzieq.restServer.models.shared_models import WebhookConfig
+from suzieq.restServer.routes.pollers_route import router as pollers_router
+from suzieq.restServer.routes.query_route import router as query_router
+from suzieq.restServer.services.pollers_service import ResourceContext
+from suzieq.restServer.utils.settings import Settings
+from suzieq.restServer.utils.webhook import send_webhook
 from suzieq.shared.utils import print_version, sq_get_config_file
-from suzieq.restServer.utils.config import Settings
-from suzieq.restServer.routes.sq_poller import router as sq_poller_router
-from suzieq.restServer.routes.query import router as query_router
 
 
 app = FastAPI(
     openapi_url="/api/openapi.json",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
+    on_shutdown=[ResourceContext.cleanup_all_controller_resources],
 )
-app.include_router(sq_poller_router, prefix="/api/v2")
+
+app.include_router(pollers_router, prefix="/api/v2")
 app.include_router(query_router, prefix="/api/v2")
 
 
@@ -77,7 +82,8 @@ def deprecated_function(rest_of_path: str):
 def missing_verb(command):
     raise HTTPException(
         status_code=404,
-        detail=f"{command} command missing a verb. for example /api/v2/{command}/show",
+        detail=f"{command} command missing a verb. \
+        for example /api/v2/{command}/show",
     )
 
 
@@ -85,10 +91,22 @@ def missing_verb(command):
 def bad_path():
     raise HTTPException(
         status_code=404,
-        detail="bad path. Try something like '/api/v2/device/show' or '/api/docs'",
+        detail="bad path. Try something like '/api/v2/device/show' \
+        or '/api/docs'",
     )
 
 
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.post("/api/v2/test/webhook")
+def test_webhook(webhook: WebhookConfig):
+    try:
+        send_webhook(webhook)
+        return {"message": "webhook sent"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error sending webhook: {e}"
+        )

@@ -12,11 +12,18 @@ from typing import Dict
 import uvloop
 from suzieq.poller.controller.controller import Controller
 from suzieq.poller.worker.writers.output_worker import OutputWorker
-from suzieq.shared.exceptions import InventorySourceError, PollingError, \
-    SqPollerConfError
-from suzieq.shared.utils import (poller_log_params, init_logger,
-                                 load_sq_config, print_version,
-                                 log_suzieq_info)
+from suzieq.shared.exceptions import (
+    InventorySourceError,
+    PollingError,
+    SqPollerConfError,
+)
+from suzieq.shared.utils import (
+    poller_log_params,
+    init_logger,
+    load_sq_config,
+    print_version,
+    log_suzieq_info,
+)
 from suzieq.poller.controller.utils.inventory_utils import read_inventory
 
 
@@ -30,18 +37,19 @@ async def start_controller(user_args: argparse.Namespace, config_data: Dict):
     """
     # Init logger of the poller
     logfile, loglevel, logsize, log_stdout = poller_log_params(
-        config_data,
-        is_controller=True
+        config_data, is_controller=True
     )
-    logger = init_logger('suzieq.poller.controller', logfile,
-                         loglevel, logsize, log_stdout)
+    logger = init_logger(
+        'suzieq.poller.controller', logfile, loglevel, logsize, log_stdout
+    )
 
     try:
         if user_args.syntax_check:
             if not user_args.inventory:
                 raise SqPollerConfError(
                     'With the --syntax-check option the user must specify '
-                    'the inventory file via the -I option')
+                    'the inventory file via the -I option'
+                )
             # perform inventory validation and return
             read_inventory(user_args.inventory)
             print('Inventory syntax check passed')
@@ -53,7 +61,7 @@ async def start_controller(user_args: argparse.Namespace, config_data: Dict):
         await controller.run()
     except (SqPollerConfError, InventorySourceError, PollingError) as error:
         if not log_stdout:
-            print(f"ERROR: {error}")
+            print(f'ERROR: {error}')
         logger.error(error)
         sys.exit(1)
     except Exception as error:
@@ -64,8 +72,7 @@ async def start_controller(user_args: argparse.Namespace, config_data: Dict):
 
 
 def controller_main():
-    """The routine that kicks things off including arg parsing
-    """
+    """The routine that kicks things off including arg parsing"""
     parser = argparse.ArgumentParser()
 
     # Get supported output, 'gather' cannot be manually selected
@@ -78,32 +85,26 @@ def controller_main():
     # 1. Suzieq inventory file
     # 2. Input directory
     source_arg = parser.add_mutually_exclusive_group()
-    source_arg.add_argument(
-        '-I',
-        '--inventory',
-        type=str,
-        help='Input inventory file'
-    )
+    source_arg.add_argument('-I', '--inventory', type=str, help='Input inventory file')
 
     source_arg.add_argument(
         '-i',
         '--input-dir',
         type=str,
-        help=('Directory where run-once=gather data is. Process the data in '
-              'directory as they were retrieved by the hosts')
+        help=(
+            'Directory where run-once=gather data is. Process the data in '
+            'directory as they were retrieved by the hosts'
+        ),
     )
 
     parser.add_argument(
-        '-c',
-        '--config',
-        help='Controller configuration file',
-        type=str
+        '-c', '--config', help='Controller configuration file', type=str
     )
 
     parser.add_argument(
         '--debug',
         action='store_true',
-        help='Build the node list and exit without polling the nodes'
+        help='Build the node list and exit without polling the nodes',
     )
 
     parser.add_argument(
@@ -132,7 +133,7 @@ def controller_main():
     )
 
     parser.add_argument(
-        "--output-dir",
+        '--output-dir',
         type=str,
         help=argparse.SUPPRESS,
     )
@@ -141,12 +142,14 @@ def controller_main():
         '--run-once',
         type=str,
         choices=['gather', 'process', 'update'],
-        help=('''The poller do not run forever, three modes are available:
+        help=(
+            '''The poller do not run forever, three modes are available:
         (1) gather: store the output as it has been collected,
         (2) process: performs some processing on the data.
         Both cases store the results in a plain output file,
         one for each service, and exit.
-        (3) update: poll the nodes only once, write the result and stop''')
+        (3) update: poll the nodes only once, write the result and stop'''
+        ),
     )
 
     parser.add_argument(
@@ -160,14 +163,14 @@ def controller_main():
         '--ssh-config-file',
         type=str,
         default=None,
-        help='Path to ssh config file, that you want to use'
+        help='Path to ssh config file, that you want to use',
     )
 
     parser.add_argument(
         '-p',
         '--update-period',
         help='How frequently the inventory updates [DEFAULT=3600]',
-        type=int
+        type=int,
     )
 
     parser.add_argument(
@@ -178,16 +181,50 @@ def controller_main():
     )
 
     parser.add_argument(
-        '-V',
-        '--version',
-        action='store_true',
-        help='Print suzieq version'
+        '-V', '--version', action='store_true', help='Print suzieq version'
     )
 
     parser.add_argument(
         '--syntax-check',
         action='store_true',
-        help='Check inventory file syntax and return'
+        help='Check inventory file syntax and return',
+    )
+
+    parser.add_argument(
+        '--max-cmd-pipeline',
+        type=int,
+        help='The maximum values of authentication requests \
+        or commands per second that the poller should issue.',
+    )
+
+    parser.add_argument(
+        '--inventory-timeout',
+        type=int,
+        help='maximum time in seconds for a source to return its nodes',
+    )
+
+    parser.add_argument(
+        '--connect-timeout',
+        type=int,
+        help='maximum time in seconds for node to respond to a command',
+    )
+
+    parser.add_argument(
+        '--logging-level',
+        type=str,
+        help='Logging level for the poller',
+    )
+
+    parser.add_argument(
+        '--log-stdout',
+        type=bool,
+        help='Log to stdout',
+    )
+
+    parser.add_argument(
+        '--period',
+        type=int,
+        help='how often informations are gathered from each device (in seconds)',
     )
 
     args = parser.parse_args()
@@ -199,7 +236,7 @@ def controller_main():
     uvloop.install()
     cfg = load_sq_config(config_file=args.config)
     if not cfg:
-        print("Could not load config file, aborting")
+        print('Could not load config file, aborting')
         sys.exit(1)
 
     try:

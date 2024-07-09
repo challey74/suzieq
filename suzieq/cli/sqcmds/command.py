@@ -19,7 +19,7 @@ from termcolor import cprint, colored
 from suzieq.cli.nubia_patch import argument
 from suzieq.shared.sq_plugin import SqPlugin
 from suzieq.shared.exceptions import UserQueryError
-from suzieq.shared.utils import (DATA_FORMATS, SUPPORTED_ENGINES,
+from suzieq.shared.utils import (DataFormats, SUPPORTED_ENGINES,
                                  deprecated_command_warning)
 
 
@@ -54,7 +54,7 @@ def colorize(x, color):
 @argument(
     "format",
     description="Select the pformat of the output",
-    choices=DATA_FORMATS,
+    choices=DataFormats,
 )
 @argument(
     "query_str",
